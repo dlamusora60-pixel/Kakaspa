@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Patrick analysis</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1c2a30;--mute:#7b8d93;--teal:#1f6b7a;--bg:#f5f7f8;--line:#e6ecee}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:500 15px/1.4 Manrope,system-ui,sans-serif}
+#app{max-width:560px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:22px;margin:6px 0 2px}h2{font-size:18px;margin:22px 4px 8px}h3{font-size:16px;margin:10px 0 2px}
+small,.mute{color:var(--mute);font-weight:500}
+.card{background:#fff;border-radius:22px;padding:16px;box-shadow:0 1px 10px #0a2a3510;margin-top:12px}
+.btn{border:0;border-radius:14px;padding:13px 16px;font:700 15px Manrope,sans-serif;background:var(--teal);color:#fff;width:100%}
+.btn.sec{background:#e8f0f2;color:var(--teal)}.row{display:flex;gap:8px;margin-top:10px}
+.tabs{display:flex;gap:18px;font-size:13px;color:var(--mute);padding:4px}.tabs b{color:var(--ink)}
+/* разметка */
+.dg{width:100%;max-height:26vh;object-fit:contain;background:#fff;border-radius:16px}
+#ph{position:relative;touch-action:none;border-radius:18px;overflow:hidden;margin-top:10px;line-height:0;user-select:none}
+#ph img{width:100%}.dot{position:absolute;width:8px;height:8px;margin:-4px;border-radius:50%;background:#fff9;border:1px solid #1f6b7a}
+.dot.cur{width:14px;height:14px;margin:-7px;background:#e8503a;border:2px solid #fff}
+#lp{position:absolute;top:8px;width:96px;height:96px;border-radius:50%;border:3px solid #fff;display:none;box-shadow:0 2px 10px #0006;background-color:#000}
+#lp:after{content:"";position:absolute;left:46px;top:46px;width:6px;height:6px;border-radius:50%;background:#e8503a}
+select{flex:1;border:1px solid var(--line);border-radius:14px;background:#fff;padding:0 8px;font:600 13px Manrope}
+.bar{height:5px;background:var(--line);border-radius:3px;margin-bottom:4px}.bar i{display:block;height:100%;background:var(--teal);border-radius:3px}
+/* результат */
+.hero{position:relative;border-radius:24px;overflow:hidden;line-height:0;background:#222}
+.hero img{width:100%;max-height:70vh;object-fit:cover}
+.hero div{position:absolute;inset:auto 0 0 0;padding:46px 18px 16px;line-height:1.2;color:#fff;display:flex;justify-content:space-between;align-items:flex-end;background:linear-gradient(transparent,#17606ad9)}
+.hero b{font-size:36px;font-weight:600}.hero span{font-size:12px;opacity:.85;display:block}
+.pill{background:#fff;border-radius:20px;padding:14px 16px;margin-top:10px;box-shadow:0 1px 8px #0a2a350d}
+.ph{display:flex;align-items:center;gap:8px;cursor:pointer}.ph>span{flex:1;font-size:15px}
+.badge{background:#e8f0f2;color:#6b8890;font-size:11px;padding:2px 8px;border-radius:9px;margin-left:6px;white-space:nowrap}
+.sc{color:var(--teal);font-size:21px;font-weight:600}.ph em{color:#aab8bd;font-style:normal;transition:.2s}.open em{transform:rotate(90deg)}
+.zone{position:relative;height:12px;margin-top:12px;border-radius:7px;background:linear-gradient(90deg,#f1d9c6,#d6dcc0 22%,#b7d6dc 35%,#b7d6dc 65%,#d6dcc0 78%,#f1d9c6)}
+.zone i{position:absolute;top:1px;width:24px;height:10px;margin-left:-12px;background:#fff;border-radius:6px;box-shadow:0 0 0 1px #0002}
+.det{display:none;margin-top:12px;font-size:13px}.open .det{display:block}.det svg{width:100%;border-radius:14px;background:#000;display:block;margin-bottom:8px}
+.det p{margin:4px 0}.st li{margin:3px 0}.st ul{margin:6px 0 0;padding-left:18px}
+</style></head><body><div id="app"></div>
+<script>
+const tg=window.Telegram&&Telegram.WebApp;tg&&(tg.ready(),tg.expand());
+const $=s=>document.querySelector(s),cap=s=>s[0].toUpperCase()+s.slice(1);
+
+/* ---------- 48 точек: [ключ = имя файла диаграммы, название, латынь, описание] ---------- */
+const ADJ={left:{m:'Левый',f:'Левая'},right:{m:'Правый',f:'Правая'}},PTS=[];
+const one=(k,ru,lat,ds)=>PTS.push({k,ru,lat,ds});
+const pair=(k,g,ru,lat,ds)=>['left','right'].forEach(s=>PTS.push({
+  k:k[0]=='$'?s+k.slice(1):k.slice(0,-1)+cap(s),ru:ru.replace('{}',ADJ[s][g]),lat:s+' '+lat,ds}));
+one('hairline','Линия роста волос','Trichion','Самая высокая точка линии роста волос по центру лба (вид спереди).');
+pair('$EyePupil','m','{} зрачок','Pupilla','Центр зрачка.');
+pair('nose$','m','{} край носа','Ala Nasi','Крайняя точка носа в самой широкой части ноздрей.');
+one('lowerLip','Центр нижней губы','Labrale Inferius','Центр нижней губы в самой выступающей, полной части.');
+one('chinBottom','Низ подбородка','Menton','Самая нижняя точка подбородка между левой и правой точками подбородка.');
+pair('$Temple','m','{} висок','Temporal Point','Самая широкая точка линии роста волос на этой стороне, на полпути между линией волос и бровью.');
+pair('$EyeMedialCanthus','m','{} глаз: внутренний угол','Canthus Medialis','Внутренний угол глаза.');
+pair('$EyeLateralCanthus','m','{} глаз: внешний угол','Canthus Lateralis','Внешний угол глаза, где смыкаются веки.');
+pair('$EyeUpperEyelid','m','{} глаз: верхнее веко','Palpebra Superior','Самая высокая точка верхнего века над радужкой.');
+pair('$EyeLowerEyelid','m','{} глаз: нижнее веко','Palpebra Inferior','Самая низкая точка нижнего века под радужкой.');
+pair('$BrowHead','f','{} бровь: начало (head)','Supercilium Medialis','Самая внутренняя и верхняя точка брови, у края, где заканчиваются волоски.');
+pair('$BrowInnerCorner','f','{} бровь: внутренний угол','Supercilium Medial Corner','Самая нижняя точка внутреннего края брови, где заканчиваются волоски.');
+pair('$BrowArch','f','{} бровь: изгиб (arch)','Supercilium Superior','Самая высокая точка по нижнему краю брови, где бровь достигает пика.');
+pair('$BrowPeak','m','{} пик брови','Supercilium Apex','Самая приподнятая точка верхнего края брови; может быть чуть в стороне от arch.');
+pair('$BrowTail','f','{} бровь: хвост','Supercilium Lateralis','Самая внешняя точка брови, где волоски сходят на нет у виска.');
+pair('$UpperEyelidCrease','f','{} складка верхнего века','Pretarsal Skin Crease','Горизонтальная складка верхнего века при открытом глазе, выше линии ресниц. Если складки не видно — ставьте на уровне точки верхнего века.');
+one('nasalBase','Основание носа','Nasal Base','Основание носа там, где заканчивается нижняя часть ноздри, обычно сбоку от кончика носа.');
+one('noseBottom','Низ носа','Subnasale','Самая нижняя точка носа примерно по его середине.');
+pair('$NoseBridge','f','{} сторона переносицы','Dorsum Nasi','Край спинки носа, где костная часть переходит в кожу лица, примерно на середине носа.');
+pair('mouth$','m','{} уголок рта','Cheilion','Крайний угол рта, где заканчивается граница губ.');
+one('cupidsBow','Лук Купидона (пик)','Labrale Superius','Самая высокая точка верхней губы, обычно справа или слева от центра.');
+one('innerCupidsBow','Центр лука Купидона','Cupid\'s Bow','Центральная впадина между двумя пиками лука Купидона на красной кайме верхней губы.');
+one('mouthMiddle','Центр рта','Mouth Middle','Центр рта, где смыкаются верхняя и нижняя губы.');
+pair('$TopGonion','m','{} верхний угол челюсти','Gonion Superior','Верхняя часть угла челюсти, где она начинает изгибаться; обычно самая выступающая точка на уровне рта.');
+pair('$BottomGonion','m','{} нижний угол челюсти','Gonion Inferior','Нижняя часть угла челюсти ниже верхней, где челюсть изгибается к подбородку.');
+pair('chin$','m','{} край подбородка','Mentum Lateralis','Сторона подбородка, где он начинает изгибаться и образует угол.');
+pair('neck$','f','{} точка шеи','Cervical Lateralis','Самая широкая точка стороны шеи, обычно сразу под линией челюсти.');
+pair('$Cheek','f','{} скула','Zygion','Самая выступающая в сторону точка скулы, обычно самая широкая часть средней трети лица.');
+
+/* ---------- геометрия ---------- */
+let S=JSON.parse(localStorage.pa||'{"pts":{},"i":0}');
+const save=()=>{try{localStorage.pa=JSON.stringify(S)}catch(e){}};
+const mid=(...k)=>({x:k.reduce((t,q)=>t+P(q).x,0)/k.length,y:k.reduce((t,q)=>t+P(q).y,0)/k.length});
+function P(k){return S.pts[k]||{G:()=>mid('leftBrowHead','rightBrowHead','leftBrowInnerCorner','rightBrowInnerCorner'),
+ PM:()=>mid('leftEyePupil','rightEyePupil'),ZM:()=>mid('leftCheek','rightCheek'),BM:()=>mid('leftBrowInnerCorner','rightBrowInnerCorner')}[k]()}
+const d=(a,b)=>Math.hypot(P(a).x-P(b).x,P(a).y-P(b).y),dy=(a,b)=>Math.abs(P(a).y-P(b).y);
+const sub=(a,b)=>({x:a.x-b.x,y:a.y-b.y}),deg=r=>r*180/Math.PI;
+const angV=(u,w)=>deg(Math.acos((u.x*w.x+u.y*w.y)/Math.hypot(u.x,u.y)/Math.hypot(w.x,w.y)));
+const ang=(v,a,b)=>angV(sub(P(a),P(v)),sub(P(b),P(v)));
+const av=f=>(f('left')+f('right'))/2;
+const zy=()=>d('leftCheek','rightCheek'),nw=()=>d('noseLeft','noseRight'),mw=()=>d('mouthLeft','mouthRight');
+const icd=()=>d('leftEyeMedialCanthus','rightEyeMedialCanthus'),ipd=()=>d('leftEyePupil','rightEyePupil');
+const ew=s=>d(s+'EyeMedialCanthus',s+'EyeLateralCanthus'),tgw=()=>d('leftTopGonion','rightTopGonion');
+const ct=()=>av(s=>{const m=P(s+'EyeMedialCanthus'),l=P(s+'EyeLateralCanthus');return deg(Math.atan2(m.y-l.y,Math.abs(l.x-m.x)))});
+const bt=()=>av(s=>ang(s+'BrowInnerCorner',s+'BrowArch',s+'BrowTail'));
+const iaa=()=>ang('noseBottom','rightEyeLateralCanthus','leftEyeLateralCanthus');
+const jfa=()=>angV(sub(P('chinLeft'),P('leftBottomGonion')),sub(P('chinRight'),P('rightBottomGonion')));
+const bit=()=>d('leftTemple','rightTemple')/zy()*100,big=()=>d('leftBottomGonion','rightBottomGonion')/zy()*100;
+const th=i=>{const t=[d('hairline','G'),d('G','noseBottom'),d('noseBottom','chinBottom')];return t[i]/(t[0]+t[1]+t[2])*100};
+const Z='leftCheek-rightCheek';
+
+/* ---------- метрики: [название, пояснение, min, max, ед., вес, формула, линии замера] ($ = обе стороны) ---------- */
+const M=[
+['FWHR','Ширина скул к высоте от центра лука Купидона до глабеллы',1.9,2.06,'x',2,()=>zy()/d('innerCupidsBow','G'),Z+',innerCupidsBow-G'],
+['Total FWHR','Высота лица (линия волос — подбородок) к ширине скул',1.33,1.38,'x',2,()=>d('hairline','chinBottom')/zy(),Z+',hairline-chinBottom'],
+['MFR','Расстояние между зрачками к высоте от линии зрачков до лука Купидона',.95,1.01,'x',2,()=>ipd()/d('PM','innerCupidsBow'),'leftEyePupil-rightEyePupil,PM-innerCupidsBow'],
+['Jaw Width','Ширина по верхним углам челюсти к ширине скул',.9,1,'x',2,()=>tgw()/zy(),'leftTopGonion-rightTopGonion,'+Z],
+['Bigonial Width','Ширина по нижним углам челюсти к ширине скул',85.5,92,'%',2,big,'leftBottomGonion-rightBottomGonion,'+Z],
+['Neck Width','Ширина шеи к ширине по верхним углам челюсти',90,98,'%',1,()=>d('neckLeft','neckRight')/tgw()*100,'neckLeft-neckRight,leftTopGonion-rightTopGonion'],
+['Canthal Tilt','Наклон глаз: угол линии внутренний—внешний угол к горизонтали',5,9,'°',2,ct,'$EyeMedialCanthus-$EyeLateralCanthus'],
+['ESR','Расстояние между зрачками к ширине скул',44.3,47.3,'%',2,()=>ipd()/zy()*100,'leftEyePupil-rightEyePupil,'+Z],
+['ES (IPD)','Расстояние между внутренними углами глаз к ширине глаза',.93,1.04,'x',1,()=>icd()/av(ew),'leftEyeMedialCanthus-rightEyeMedialCanthus,$EyeMedialCanthus-$EyeLateralCanthus'],
+['Inner Canthal Distance','Расстояние между внутренними углами глаз к ширине скул',25.5,28,'%',1,()=>icd()/zy()*100,'leftEyeMedialCanthus-rightEyeMedialCanthus,'+Z],
+['Outer Canthal Distance','Расстояние между внешними углами глаз к ширине скул',.63,.67,'x',1,()=>d('leftEyeLateralCanthus','rightEyeLateralCanthus')/zy(),'leftEyeLateralCanthus-rightEyeLateralCanthus,'+Z],
+['Medial Canthal Angle','Угол между линией внутренний угол—складка века и горизонталью',20,42,'°',1,()=>av(s=>{const m=P(s+'EyeMedialCanthus'),c=P(s+'UpperEyelidCrease');return deg(Math.atan2(m.y-c.y,Math.abs(c.x-m.x)))}),'$EyeMedialCanthus-$UpperEyelidCrease'],
+['EAR','Ширина глаза к его высоте (верхнее — нижнее веко)',3,3.5,'x',1,()=>av(s=>ew(s)/d(s+'EyeUpperEyelid',s+'EyeLowerEyelid')),'$EyeMedialCanthus-$EyeLateralCanthus,$EyeUpperEyelid-$EyeLowerEyelid'],
+['Lower Third','Нижняя треть (низ носа — подбородок) от всей высоты лица',30.6,34,'%',2,()=>d('chinBottom','noseBottom')/d('hairline','chinBottom')*100,'noseBottom-chinBottom,hairline-chinBottom'],
+['Cheekbones Height','Вертикаль от скул до лука Купидона к вертикали от зрачков',81,100,'%',1,()=>dy('ZM','cupidsBow')/dy('PM','cupidsBow')*100,'PM-cupidsBow,ZM-cupidsBow,'+Z+',leftEyePupil-rightEyePupil'],
+['Chin to Philtrum','Центр нижней губы — подбородок к филтруму (лук Купидона — низ носа)',2.05,2.55,'x',1,()=>d('lowerLip','chinBottom')/d('innerCupidsBow','noseBottom'),'lowerLip-chinBottom,innerCupidsBow-noseBottom'],
+['Lower Lip / Upper Lip','Высота нижней губы к высоте верхней',1.4,1.7,'x',1,()=>dy('mouthMiddle','lowerLip')/dy('cupidsBow','mouthMiddle'),'cupidsBow-mouthMiddle,mouthMiddle-lowerLip,mouthLeft-mouthRight'],
+['Nose to Mouth Width','Ширина рта к ширине носа',1.38,1.53,'x',1,()=>mw()/nw(),'noseLeft-noseRight,mouthLeft-mouthRight'],
+['Nose to Zygo','Ширина носа к ширине скул',.2,.3,'x',1,()=>nw()/zy(),'noseLeft-noseRight,'+Z],
+['Nose Width to ICD','Ширина носа к расстоянию между внутренними углами глаз',.86,.94,'x',1,()=>nw()/icd(),'noseLeft-noseRight,leftEyeMedialCanthus-rightEyeMedialCanthus'],
+['Nose Width to Height','Ширина носа к высоте от линии зрачков до низа носа',.66,.85,'x',1,()=>nw()/d('noseBottom','PM'),'noseLeft-noseRight,noseBottom-PM'],
+['Ipsilateral Alar Angle','Угол в точке низа носа к внешним углам глаз',85,95,'°',1,iaa,'noseBottom-leftEyeLateralCanthus,noseBottom-rightEyeLateralCanthus'],
+['Eye Mouth Eye','Угол в центре рта к зрачкам',47,50,'°',1,()=>ang('mouthMiddle','leftEyePupil','rightEyePupil'),'mouthMiddle-leftEyePupil,mouthMiddle-rightEyePupil'],
+['Nose to Chin','Ширина носа к ширине подбородка',.96,1.03,'x',1,()=>nw()/d('chinLeft','chinRight'),'noseLeft-noseRight,chinLeft-chinRight'],
+['Top Third','Верхняя треть от высоты лица (линия волос — глабелла)',30,32,'%',2,()=>th(0),'hairline-G'],
+['Middle Third','Средняя треть (глабелла — низ носа)',31.4,33.4,'%',2,()=>th(1),'G-noseBottom'],
+['Facial Lower Third','Нижняя треть (низ носа — подбородок)',33.9,37,'%',2,()=>th(2),'noseBottom-chinBottom'],
+['Bitemporal','Ширина между висками к ширине скул',84,95,'%',1,bit,'leftTemple-rightTemple,'+Z],
+['Jaw Frontal Angle','Угол, под которым линии нижней челюсти сходятся у подбородка',84.5,95,'°',1,jfa,'leftBottomGonion-chinLeft,rightBottomGonion-chinRight'],
+['IAA–JFA Deviation','Разница между Ipsilateral Alar Angle и Jaw Frontal Angle',0,2.5,'°',1,()=>Math.abs(iaa()-jfa()),'noseBottom-leftEyeLateralCanthus,noseBottom-rightEyeLateralCanthus,leftBottomGonion-chinLeft,rightBottomGonion-chinRight'],
+['Eyebrows Tilt','Угол между линиями внутренний угол — arch и внутренний угол — хвост',5,13,'°',1,bt,'$BrowInnerCorner-$BrowArch,$BrowInnerCorner-$BrowTail'],
+['Jaw Gonial Slope','Угол в верхнем углу челюсти между скулой и подбородком',140,142.5,'°',1,()=>av(s=>ang(s+'TopGonion',s+'Cheek','chin'+cap(s))),'leftCheek-leftTopGonion,leftTopGonion-chinLeft,rightCheek-rightTopGonion,rightTopGonion-chinRight'],
+['Lower Third Proportions','Доля верхней губы (низ носа — центр рта) в нижней трети',31,33.5,'%',1,()=>d('noseBottom','mouthMiddle')/d('noseBottom','chinBottom')*100,'noseBottom-mouthMiddle,mouthMiddle-chinBottom'],
+['JWHR','Ширина челюсти к высоте низ носа — подбородок',1.85,1.95,'x',1,()=>tgw()/d('noseBottom','chinBottom'),'leftTopGonion-rightTopGonion,noseBottom-chinBottom'],
+['Alar to Bridge','Ширина носа к ширине переносицы',2,2.1,'x',1,()=>nw()/d('leftNoseBridge','rightNoseBridge'),'noseLeft-noseRight,leftNoseBridge-rightNoseBridge'],
+['Forehead W/H','Высота лба (глабелла — линия волос) к ширине между висками',44,50,'%',1,()=>d('hairline','G')/d('leftTemple','rightTemple')*100,'leftTemple-rightTemple,hairline-G'],
+['Eyebrow Setness','Вертикаль от бровей до лука Купидона к вертикали от зрачков',88,98,'%',1,()=>dy('PM','cupidsBow')/dy('BM','cupidsBow')*100,'PM-cupidsBow,BM-cupidsBow,leftEyePupil-rightEyePupil,leftBrowInnerCorner-rightBrowInnerCorner'],
+['Brow Length / Face Width','Суммарная длина бровей к ширине скул',69,79,'%',1,()=>(d('leftBrowInnerCorner','leftBrowTail')+d('rightBrowInnerCorner','rightBrowTail'))/zy()*100,'$BrowInnerCorner-$BrowTail,'+Z],
+['Deviation Canthal / Brow Tilt','Разница между наклоном глаз и наклоном бровей',0,3,'°',1,()=>Math.abs(ct()-bt()),'$EyeMedialCanthus-$EyeLateralCanthus,$BrowInnerCorner-$BrowTail'],
+['MAR','Ширина рта к высоте губ (лук Купидона — нижняя губа)',3,3.5,'x',1,()=>mw()/dy('cupidsBow','lowerLip'),'mouthLeft-mouthRight,cupidsBow-lowerLip'],
+['Deviation Bitemporal / Bigonial','Разница между Bitemporal и Bigonial Width',0,4,'%',1,()=>Math.abs(bit()-big()),'leftTemple-rightTemple,leftBottomGonion-rightBottomGonion'],
+['PFL to Biozygo','Ширина глаза к ширине скул',19.5,21.5,'%',1,()=>av(ew)/zy()*100,'$EyeMedialCanthus-$EyeLateralCanthus,'+Z]
+];
+
+/* ---------- оценка ---------- */
+const dev=(v,m)=>v<m.min?(m.min-v)/m.min:v>m.max?(v-m.max)/m.max:0;
+const tier=x=>x<.05?1:x<.1?2:x<.2?3:x<.35?4:x<.5?5:6;
+function calc(){
+  const R=M.map(([name,ds,min,max,u,w,fn,ln])=>{const m={name,ds,min,max,u,w,ln,v:fn()};
+    m.dev=dev(m.v,m);m.pen=m.dev<.05?0:m.dev;
+    m.score=m.dev?Math.max(0,8.5-m.dev*25):10-1.5*Math.abs(m.v-(min+max)/2)/((max-min)/2);return m});
+  const W=R.reduce((t,m)=>t+m.w,0);R.forEach(m=>m.cost=m.w*m.pen/W*25);
+  const harmony=Math.max(0,10-R.reduce((t,m)=>t+m.cost,0));
+  const T=R.map(m=>tier(m.dev)),tierScore=Math.max(0,10-((T.reduce((a,b)=>a+b)/T.length-1)*1.2+(Math.max(...T)-1)*.8));
+  return{R,harmony,tierScore}}
+const fmt=(v,u)=>v.toFixed(2)+(u=='x'||u=='%'||u=='°'?u:'');
+const label=h=>h>=9?'Отличная гармония':h>=8?'Очень хорошая гармония':h>=7?'Хорошая гармония':h>=5?'Средняя гармония':'Низкая гармония';
+
+/* ---------- экраны ---------- */
+const app=$('#app'),head=(t='')=>`<h1>Patrick analysis</h1><div class="mute">${t}</div>`;
+function home(){
+  const n=Object.keys(S.pts).length;
+  app.innerHTML=head('Анализ пропорций лица по 48 точкам')+`<div class="card"><p>Загрузите фото анфас: лицо прямо, нейтральное выражение, ровный свет.</p>
+  <input type="file" id="f" accept="image/*" hidden><button class="btn" onclick="f.click()">Выбрать фото</button>
+  ${S.img?`<div class="row"><button class="btn sec" onclick="mark()">Продолжить разметку (${n}/${PTS.length})</button></div>`:''}</div>`;
+  $('#f').onchange=e=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement('canvas');
+    c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    S={img:c.toDataURL('image/jpeg',.85),w:c.width,h:c.height,pts:{},i:0};save();mark()};im.src=URL.createObjectURL(e.target.files[0])}}
+
+function mark(){
+  const p=PTS[S.i],n=Object.keys(S.pts).length;
+  app.innerHTML=head()+`<div class="bar"><i style="width:${n/PTS.length*100}%"></i></div>
+  <img class="dg" src="img/${p.k}.webp" onerror="this.style.display='none'">
+  <h3>${S.i+1}. ${p.ru} <small>${p.lat}</small></h3><div class="mute">${p.ds}</div>
+  <div id="ph"><img src="${S.img}" draggable="false"><div id="lp" style="background-image:url(${S.img})"></div></div>
+  <div class="row"><button class="btn sec" style="width:auto" onclick="go(-1)">‹</button>
+  <select onchange="S.i=+this.value;mark()">${PTS.map((q,i)=>`<option value="${i}" ${i==S.i?'selected':''}>${S.pts[q.k]?'✓ ':''}${i+1}. ${q.ru}</option>`).join('')}</select>
+  <button class="btn" style="width:auto" onclick="go(1)">${S.i==PTS.length-1?'Готово':'›'}</button></div>
+  <div class="row"><button class="btn sec" onclick="home()">В начало</button></div>`;
+  const ph=$('#ph'),lp=$('#lp');dots();
+  const at=e=>{const r=ph.getBoundingClientRect(),fx=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),fy=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+    S.pts[p.k]={x:fx*S.w,y:fy*S.h};dots();
+    lp.style.display='block';lp.style.left=fx<.4?'auto':'8px';lp.style.right=fx<.4?'8px':'auto';
+    lp.style.backgroundSize=r.width*3+'px auto';lp.style.backgroundPosition=`${48-fx*r.width*3}px ${48-fy*r.height*3}px`};
+  let down=0;ph.onpointerdown=e=>{down=1;ph.setPointerCapture(e.pointerId);at(e)};
+  ph.onpointermove=e=>down&&at(e);
+  ph.onpointerup=()=>{down=0;lp.style.display='none';save()}}
+function dots(){const ph=$('#ph');ph.querySelectorAll('.dot').forEach(x=>x.remove());
+  PTS.forEach((q,i)=>{const c=S.pts[q.k];if(c)ph.insertAdjacentHTML('beforeend',`<i class="dot ${i==S.i?'cur':''}" style="left:${c.x/S.w*100}%;top:${c.y/S.h*100}%"></i>`)})}
+function go(s){const n=S.i+s;
+  if(n>=PTS.length){return Object.keys(S.pts).length==PTS.length?result():alert('Расставлены не все точки — выберите пропущенные в списке (без ✓).')}
+  S.i=Math.max(0,n);save();mark()}
+
+/* линии замера: "a-b,c-d" ($ → левая и правая сторона) */
+const segs=ln=>ln.split(',').flatMap(s=>s.includes('$')?['left','right'].map(x=>s.replaceAll('$',x).replace(/chin(?=\b|-|$)/,'chin')):[s]).map(s=>s.split('-'));
+function svg(m){
+  const sg=segs(m.ln).map(([a,b])=>[P(a),P(b)]),xs=sg.flatMap(s=>s.map(q=>q.x)),ys=sg.flatMap(s=>s.map(q=>q.y));
+  let x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),w=Math.max(x1-x0,(y1-y0)*1.2,60)*1.35,h=w*.75;
+  const cx=(x0+x1)/2,cy=(y0+y1)/2,sw=w/160;
+  return`<svg viewBox="${cx-w/2} ${cy-h/2} ${w} ${h}"><image href="${S.img}" width="${S.w}" height="${S.h}"/>`+
+   sg.map(([a,b])=>`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#35e0d0" stroke-width="${sw}"/><circle cx="${a.x}" cy="${a.y}" r="${sw*2}" fill="#fff"/><circle cx="${b.x}" cy="${b.y}" r="${sw*2}" fill="#fff"/>`).join('')+'</svg>'}
+function result(){
+  S.i=0;const{R,harmony,tierScore}=calc();
+  const best=[...R].sort((a,b)=>b.score-a.score).slice(0,3),worst=[...R].sort((a,b)=>b.cost-a.cost).filter(m=>m.cost>0).slice(0,3);
+  app.innerHTML=head()+`<div class="tabs"><b>Гармония</b><span>Front</span></div>
+  <div class="hero"><img src="${S.img}"><div><span style="font-size:15px;opacity:1">Front Harmony<br>Score</span>
+  <p style="text-align:right;margin:0"><b>${harmony.toFixed(1)}</b><small style="color:#fffc"> /10</small><span>${label(harmony)}</span></p></div></div>
+  <div class="card st"><b>Сильные стороны:</b><ul>${best.map(m=>`<li>${m.name} — ${m.score.toFixed(1)}/10</li>`).join('')}</ul>
+  <p style="margin:12px 0 0"><b>Наибольший вклад в штраф:</b></p><ul>${worst.length?worst.map(m=>`<li>${m.name} — −${m.cost.toFixed(2)}</li>`).join(''):'<li>Нет штрафов</li>'}</ul>
+  <p class="mute" style="margin:12px 0 0">Оценка по тирам: <b>${tierScore.toFixed(1)}</b>/10</p></div>
+  <h2>Ваши пропорции</h2>${R.map((m,i)=>{const pos=Math.min(97,Math.max(3,(.5+(m.v-(m.min+m.max)/2)/(m.max-m.min)*.4)*100));
+   return`<div class="pill" id="p${i}"><div class="ph" onclick="tog(${i})"><span>${m.name}<b class="badge">${fmt(m.v,m.u)}</b></span><b class="sc">${m.score.toFixed(2)}</b><em>›</em></div>
+   <div class="zone"><i style="left:${pos}%"></i></div><div class="det"></div></div>`}).join('')}
+  <div class="row"><button class="btn sec" onclick="mark()">Править точки</button><button class="btn sec" onclick="home()">Новое фото</button></div>`;
+  window.RES=R}
+function tog(i){const el=$('#p'+i),m=RES[i];el.classList.toggle('open');const dt=el.querySelector('.det');
+  if(!dt.innerHTML)dt.innerHTML=svg(m)+`<p>${m.ds}</p><p><b>Значение:</b> ${fmt(m.v,m.u)} · <b>Норма:</b> ${m.min}–${m.max}${m.u=='x'?'x':m.u}</p>
+  <p><b>Оценка:</b> ${m.score.toFixed(2)}/10 · <b>Вес:</b> ${m.w} · <b>Штраф:</b> −${m.cost.toFixed(2)}</p>`}
+S.img&&Object.keys(S.pts).length==PTS.length?result():home();
+</script></body></html>
