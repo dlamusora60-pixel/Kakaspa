@@ -36,6 +36,8 @@ select{flex:1;border:1px solid var(--line);border-radius:14px;background:#fff;pa
 .zone{position:relative;height:12px;margin-top:12px;border-radius:7px;background:linear-gradient(90deg,#f1d9c6,#d6dcc0 22%,#b7d6dc 35%,#b7d6dc 65%,#d6dcc0 78%,#f1d9c6)}
 .zone i{position:absolute;top:1px;width:24px;height:10px;margin-left:-12px;background:#fff;border-radius:6px;box-shadow:0 0 0 1px #0002}
 .det{display:none;margin-top:12px;font-size:13px}.open .det{display:block}.det svg{width:100%;border-radius:14px;background:#000;display:block;margin-bottom:8px}
+.gl{display:flex;gap:8px;overflow-x:auto;margin:6px 0 10px;padding-bottom:4px}.gl figure{margin:0;flex:0 0 120px;font-size:11px;line-height:1.2;color:var(--mute)}
+.gl img,.gi img{width:100%;background:#fff;border-radius:12px;display:block;margin-bottom:3px}.gi{display:flex;gap:12px;align-items:flex-start;margin-top:10px}.gi img{width:130px;flex:none;margin:0}
 .det p{margin:4px 0}.st li{margin:3px 0}.st ul{margin:6px 0 0;padding-left:18px}
 </style></head><body><div id="app"></div>
 <script>
@@ -163,7 +165,7 @@ const app=$('#app'),head=(t='')=>`<h1>Patrick analysis</h1><div class="mute">${t
 function home(){
   const n=Object.keys(S.pts).length;
   app.innerHTML=head('Анализ пропорций лица по 48 точкам')+`<div class="card"><p>Загрузите фото анфас: лицо прямо, нейтральное выражение, ровный свет.</p>
-  <input type="file" id="f" accept="image/*" hidden><button class="btn" onclick="f.click()">Выбрать фото</button>
+  <input type="file" id="f" accept="image/*" hidden><button class="btn" onclick="f.click()">Выбрать фото</button><div class="row"><button class="btn sec" onclick="guide('home')">Справочник точек</button></div>
   ${S.img?`<div class="row"><button class="btn sec" onclick="mark()">Продолжить разметку (${n}/${PTS.length})</button></div>`:''}</div>`;
   $('#f').onchange=e=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement('canvas');
     c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);
@@ -193,6 +195,10 @@ function go(s){const n=S.i+s;
   if(n>=PTS.length){return Object.keys(S.pts).length==PTS.length?result():alert('Расставлены не все точки — выберите пропущенные в списке (без ✓).')}
   S.i=Math.max(0,n);save();mark()}
 
+const dgm=k=>`<img src="img/${k}.webp" loading="lazy" onerror="this.style.display='none'">`;
+function guide(back){
+  app.innerHTML=head('Справочник точек')+`<div class="row"><button class="btn sec" onclick="${back}()">‹ Назад</button></div>`+
+  PTS.map((p,i)=>`<div class="card gi">${dgm(p.k)}<div><b>${i+1}. ${p.ru}</b><div class="mute">${p.lat}</div><p style="margin:6px 0 0;font-size:13px">${p.ds}</p></div></div>`).join('')}
 /* линии замера: "a-b,c-d" ($ → левая и правая сторона) */
 const segs=ln=>ln.split(',').flatMap(s=>s.includes('$')?['left','right'].map(x=>s.replaceAll('$',x).replace(/chin(?=\b|-|$)/,'chin')):[s]).map(s=>s.split('-'));
 function svg(m){
@@ -213,10 +219,10 @@ function result(){
   <h2>Ваши пропорции</h2>${R.map((m,i)=>{const pos=Math.min(97,Math.max(3,(.5+(m.v-(m.min+m.max)/2)/(m.max-m.min)*.4)*100));
    return`<div class="pill" id="p${i}"><div class="ph" onclick="tog(${i})"><span>${m.name}<b class="badge">${fmt(m.v,m.u)}</b></span><b class="sc">${m.score.toFixed(2)}</b><em>›</em></div>
    <div class="zone"><i style="left:${pos}%"></i></div><div class="det"></div></div>`}).join('')}
-  <div class="row"><button class="btn sec" onclick="mark()">Править точки</button><button class="btn sec" onclick="home()">Новое фото</button></div>`;
+  <div class="row"><button class="btn sec" onclick="mark()">Править точки</button><button class="btn sec" onclick="home()">Новое фото</button></div><div class="row"><button class="btn sec" onclick="guide('result')">Справочник точек</button></div>`;
   window.RES=R}
 function tog(i){const el=$('#p'+i),m=RES[i];el.classList.toggle('open');const dt=el.querySelector('.det');
-  if(!dt.innerHTML)dt.innerHTML=svg(m)+`<p>${m.ds}</p><p><b>Значение:</b> ${fmt(m.v,m.u)} · <b>Норма:</b> ${m.min}–${m.max}${m.u=='x'?'x':m.u}</p>
+  if(!dt.innerHTML)dt.innerHTML=svg(m)+`<p>${m.ds}</p><div class="gl">${[...new Set(segs(m.ln).flat())].map(k=>PTS.find(p=>p.k==k)).filter(Boolean).map(p=>`<figure>${dgm(p.k)}${p.ru}</figure>`).join('')}</div><p><b>Значение:</b> ${fmt(m.v,m.u)} · <b>Норма:</b> ${m.min}–${m.max}${m.u=='x'?'x':m.u}</p>
   <p><b>Оценка:</b> ${m.score.toFixed(2)}/10 · <b>Вес:</b> ${m.w} · <b>Штраф:</b> −${m.cost.toFixed(2)}</p>`}
 S.img&&Object.keys(S.pts).length==PTS.length?result():home();
 </script></body></html>
