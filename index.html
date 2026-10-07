@@ -34,7 +34,18 @@ p{margin:6px 0 0}
 .pt{display:flex;gap:12px;align-items:flex-start}
 .dgw{flex:0 0 38%;max-width:170px;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;line-height:0;cursor:zoom-in}
 .dgw img{width:100%;max-height:24vh;object-fit:contain;display:block}
+.pt,.gi{flex-direction:column;gap:10px}
+.dgw{flex:none !important;width:100%;max-width:none}
+.dgw img,.gi .dgw img{width:100%;max-height:none}
+.gl figure{flex:0 0 85% !important;font-size:12px}
 .pt .ds{font-size:13px;margin-top:6px;color:#34464d}
+.fxs{margin-top:10px;padding:12px 16px}
+#fx{position:relative;touch-action:none;border-radius:18px;overflow:hidden;margin-top:10px;background:#000;line-height:0;user-select:none;-webkit-user-select:none}
+#fx>svg{width:100%;display:block}
+.lpw{position:absolute;top:8px;width:104px;height:104px;border-radius:50%;border:3px solid #fff;overflow:hidden;display:none;box-shadow:0 2px 10px #0006;background:#000;pointer-events:none}
+.lpw svg{width:100%;height:100%;display:block}
+.lpw:before,.lpw:after{content:"";position:absolute;background:var(--red);z-index:1}
+.lpw:before{left:50%;top:calc(50% - 9px);width:1px;height:18px}.lpw:after{top:50%;left:calc(50% - 9px);height:1px;width:18px}
 .lat{font-size:12px;font-style:italic}
 #ph{position:relative;touch-action:none;border-radius:18px;overflow:hidden;margin-top:12px;line-height:0;user-select:none;-webkit-user-select:none}
 #ph>img{width:100%;pointer-events:none}
@@ -193,6 +204,8 @@ pair('$TopGonion', 'm', '{} верхний угол челюсти', 'Gonion Sup
   'Верхняя часть угла нижней челюсти, где она начинает изгибаться; обычно самая выступающая в сторону точка на уровне рта.');
 pair('$BottomGonion', 'm', '{} нижний угол челюсти', 'Gonion Inferior',
   'Нижняя часть угла челюсти, ниже верхней точки, где линия челюсти загибается к подбородку.');
+pair('$EarGonion', 'm', '{} угол челюсти у уха', 'Gonion (ear level)',
+  'Угол челюсти на уровне низа мочки уха: мысленно проведите горизонталь по нижнему краю мочки и поставьте точку на контуре челюсти там, где она эту линию пересекает. Если ухо закрыто волосами — ставьте на самом широком месте угла челюсти, примерно на том же уровне.');
 pair('chin$', 'm', '{} край подбородка', 'Mentum Lateralis',
   'Боковая точка подбородка: там, где он начинает изгибаться и образует угол.');
 pair('neck$', 'f', '{} точка шеи', 'Cervical Lateralis',
@@ -219,18 +232,26 @@ function raw(k) {                            // координаты на фот
   if (VIRT[k]) return mean(VIRT[k].map(raw));
   throw new Error('нет точки ' + k);
 }
-function useFace(pts, level) {
-  CTX = { pts, rot: 0 };
-  if (level && pts.leftEyePupil && pts.rightEyePupil) {
-    const [a, b] = [pts.leftEyePupil, pts.rightEyePupil].sort((p, q) => p.x - q.x);
-    CTX.rot = -Math.atan2(b.y - a.y, b.x - a.x);
-  }
+const rotPt = (p, r) => ({ x: p.x * Math.cos(r) - p.y * Math.sin(r), y: p.x * Math.sin(r) + p.y * Math.cos(r) });
+function faceRot(pts) {                      // угол поворота, при котором линия зрачков горизонтальна
+  if (!pts.leftEyePupil || !pts.rightEyePupil) return 0;
+  const [a, b] = [pts.leftEyePupil, pts.rightEyePupil].sort((p, q) => p.x - q.x);
+  return -Math.atan2(b.y - a.y, b.x - a.x);
 }
-function P(k) {                              // координаты для расчётов (с выравниванием)
-  const { x, y } = raw(k), c = Math.cos(CTX.rot), s = Math.sin(CTX.rot);
-  return { x: x * c - y * s, y: x * s + y * c };
-}
-const d  = (a, b) => Math.hypot(P(a).x - P(b).x, P(a).y - P(b).y);
+function useFace(pts, level) { CTX = { pts, rot: level ? faceRot(pts) : 0 }; }
+const P = k => rotPt(raw(k), CTX.rot);   // координаты для расчётов (с выравниванием)
+/* Ширина между левой и правой точкой — строго по горизонтали, высота между точками по центру лица — строго по вертикали.
+   Остальные расстояния (ширина глаза, длина брови и т.п.) — по прямой. */
+const MID = new Set(['hairline', 'G', 'PM', 'ZM', 'BM', 'nasalBase', 'noseBottom', 'chinBottom', 'innerCupidsBow', 'cupidsBow', 'lowerLip', 'mouthMiddle']);
+const sideOf = k => { let m = k.match(/^(left|right)(.+)$/); if (m) return [m[1], m[2]]; m = k.match(/^(.+?)(Left|Right)$/); return m ? [m[2].toLowerCase(), m[1]] : null; };
+const isMirror = (a, b) => { const x = sideOf(a), y = sideOf(b); return !!x && !!y && x[0] !== y[0] && x[1] === y[1]; };
+const isMid = k => MID.has(k);
+const d = (a, b) => {
+  const A = P(a), B = P(b);
+  if (isMirror(a, b)) return Math.abs(A.x - B.x);
+  if (isMid(a) && isMid(b)) return Math.abs(A.y - B.y);
+  return Math.hypot(A.x - B.x, A.y - B.y);
+};
 const dy = (a, b) => Math.abs(P(a).y - P(b).y);
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
 const deg = r => r * 180 / Math.PI;
@@ -250,7 +271,7 @@ const btilt = () => avg(s => ang(s + 'BrowInnerCorner', s + 'BrowArch', s + 'Bro
 const iaa = () => ang('noseBottom', 'rightEyeLateralCanthus', 'leftEyeLateralCanthus');
 const jfa = () => angV(sub(P('chinLeft'), P('leftBottomGonion')), sub(P('chinRight'), P('rightBottomGonion')));
 const bit = () => d('leftTemple', 'rightTemple') / zy() * 100;
-const big = () => d('leftBottomGonion', 'rightBottomGonion') / zy() * 100;
+const big = () => d('leftEarGonion', 'rightEarGonion') / zy() * 100;   // ширина челюсти на уровне низа ушей
 const third = i => { const t = [d('hairline', 'G'), d('G', 'noseBottom'), d('noseBottom', 'chinBottom')]; return t[i] / (t[0] + t[1] + t[2]) * 100; };
 const ZY = 'leftCheek-rightCheek';
 
@@ -266,7 +287,7 @@ metric('FWHR', 'Ширина скул к высоте от центра лука
 metric('Total FWHR', 'Высота лица (линия волос — подбородок) к ширине скул', 1.33, 1.38, 'x', 2, () => d('hairline', 'chinBottom') / zy(), ZY + ',hairline-chinBottom');
 metric('MFR', 'Расстояние между зрачками к высоте от линии зрачков до лука Купидона', .95, 1.01, 'x', 2, () => ipd() / d('PM', 'innerCupidsBow'), 'leftEyePupil-rightEyePupil,PM-innerCupidsBow');
 metric('Jaw Width', 'Ширина по верхним углам челюсти к ширине скул', .9, 1, 'x', 2, () => tgw() / zy(), 'leftTopGonion-rightTopGonion,' + ZY);
-metric('Bigonial Width', 'Ширина по нижним углам челюсти к ширине скул', 85.5, 92, '%', 2, big, 'leftBottomGonion-rightBottomGonion,' + ZY);
+metric('Bigonial Width', 'Ширина челюсти на уровне низа ушей к ширине скул', 85.5, 92, '%', 2, big, 'leftEarGonion-rightEarGonion,' + ZY);
 metric('Neck Width', 'Ширина шеи к ширине по верхним углам челюсти', 90, 98, '%', 1, () => d('neckLeft', 'neckRight') / tgw() * 100, 'neckLeft-neckRight,leftTopGonion-rightTopGonion');
 metric('Canthal Tilt', 'Наклон глаз: угол линии «внутренний — внешний угол» к горизонтали', 5, 9, '°', 2, ctilt, '$EyeMedialCanthus-$EyeLateralCanthus');
 metric('ESR', 'Расстояние между зрачками к ширине скул', 44.3, 47.3, '%', 2, () => ipd() / zy() * 100, 'leftEyePupil-rightEyePupil,' + ZY);
@@ -304,13 +325,22 @@ metric('Eyebrow Setness', 'Вертикаль от бровей до лука К
 metric('Brow Length / Face Width', 'Суммарная длина бровей к ширине скул', 69, 79, '%', 1, () => (d('leftBrowInnerCorner', 'leftBrowTail') + d('rightBrowInnerCorner', 'rightBrowTail')) / zy() * 100, '$BrowInnerCorner-$BrowTail,' + ZY);
 metric('Deviation Canthal / Brow Tilt', 'Разница между наклоном глаз и наклоном бровей', 0, 3, '°', 1, () => Math.abs(ctilt() - btilt()), '$EyeMedialCanthus-$EyeLateralCanthus,$BrowInnerCorner-$BrowTail');
 metric('MAR', 'Ширина рта к высоте губ (лук Купидона — нижняя губа)', 3, 3.5, 'x', 1, () => mw() / dy('cupidsBow', 'lowerLip'), 'mouthLeft-mouthRight,cupidsBow-lowerLip');
-metric('Deviation Bitemporal / Bigonial', 'Разница между Bitemporal и Bigonial Width', 0, 4, '%', 1, () => Math.abs(bit() - big()), 'leftTemple-rightTemple,leftBottomGonion-rightBottomGonion');
+metric('Deviation Bitemporal / Bigonial', 'Разница между Bitemporal и Bigonial Width', 0, 4, '%', 1, () => Math.abs(bit() - big()), 'leftTemple-rightTemple,leftEarGonion-rightEarGonion');
 metric('PFL to Biozygo', 'Ширина глаза к ширине скул', 19.5, 21.5, '%', 1, () => avg(ew) / zy() * 100, '$EyeMedialCanthus-$EyeLateralCanthus,' + ZY);
 
 /* =====================================================================
    6. ОЦЕНКА
    ===================================================================== */
-const deviation = (v, m) => v < m.min ? (m.min - v) / m.min : v > m.max ? (v - m.max) / m.max : 0;
+/* Допуск = полуширина нормы, но не меньше 4% от её середины (для углов — не меньше 2°):
+   так узкие диапазоны и малые углы не штрафуются несоразмерно. */
+const tolOf = m => Math.max((m.max - m.min) / 2, .04 * Math.abs((m.min + m.max) / 2), m.u === '°' ? 2 : 0);
+function scoreMetric(m, v) {
+  const mid = (m.min + m.max) / 2, half = (m.max - m.min) / 2;
+  const dist = v < m.min ? m.min - v : v > m.max ? v - m.max : 0;
+  if (!dist) return { dev: 0, score: 10 - 1.5 * Math.abs(v - mid) / half };   // внутри нормы: 8.5–10
+  const z = dist / tolOf(m);                                                  // расстояние от нормы в допусках
+  return { dev: .04 * z, score: 8.5 / (1 + .4 * z * z) };                     // плавный спад от 8.5
+}
 const tierOf = x => x < .05 ? 1 : x < .1 ? 2 : x < .2 ? 3 : x < .35 ? 4 : x < .5 ? 5 : 6;
 
 function analyze(pts, level) {
@@ -318,9 +348,8 @@ function analyze(pts, level) {
   const R = M.map(m => {
     let v = NaN; try { v = m.f(); } catch {}
     const bad = !isFinite(v); if (bad) v = 0;
-    const dev = deviation(v, m), mid = (m.min + m.max) / 2, half = (m.max - m.min) / 2;
-    return { ...m, v, bad, dev, pen: dev < .05 ? 0 : dev,
-      score: dev ? Math.max(0, 8.5 - dev * 25) : 10 - 1.5 * Math.abs(v - mid) / half };
+    const { dev, score } = scoreMetric(m, v);
+    return { ...m, v, bad, dev, pen: dev < .05 ? 0 : dev, score };
   });
   const W = R.reduce((t, m) => t + m.w, 0);
   R.forEach(m => m.cost = m.w * m.pen / W * 25);
@@ -375,7 +404,7 @@ async function migrateOldDraft() {              // перенос чернови
    8. ЭКРАНЫ
    ===================================================================== */
 const app = $('#app');
-let view = 'home', guideFrom = 'home', RES = [];
+let view = 'home', guideFrom = 'home', RES = [], fix = null;
 const dgm = (k, cls = '') => `<img class="${cls}" src="${IMG_DIR}/${k}.webp" loading="lazy" alt="" onerror="this.closest('.dgw,.gl figure')?.remove?.();this.remove()">`;
 const render = (v, html, nav = false) => {
   view = v; app.innerHTML = html; app.classList.toggle('has-nav', nav);
@@ -394,7 +423,7 @@ async function renderHome() {
         <small>${fmtDate(r.updated)}</small></div>
       <button class="x" data-a="del" data-id="${r.id}" aria-label="Удалить">×</button></div>`;
   };
-  render('home', `<h1>Patrick analysis</h1><div class="mute">Анализ пропорций лица по 48 точкам</div>
+  render('home', `<h1>Patrick analysis</h1><div class="mute">Анализ пропорций лица по ${PTS.length} точкам</div>
     <div class="card"><p style="margin:0">Загрузите фото анфас: лицо прямо, нейтральное выражение, ровный свет.</p>
       <input type="file" id="file" accept="image/*" hidden>
       <div class="row"><button class="btn" data-a="pick">Выбрать фото</button></div>
@@ -475,7 +504,7 @@ function finish() {
 }
 
 /* ---------- результат ---------- */
-function renderResult() {
+function renderResult(openI = null) {
   cur.i = 0;
   const { R, harmony, tier } = analyze(cur.pts, Settings.level);
   cur.harmony = harmony; cur.tier = tier; persist(true);
@@ -497,6 +526,7 @@ function renderResult() {
     <h2>Ваши пропорции</h2>${R.map(pill).join('')}
     <div class="row"><button class="btn sec" data-a="edit">Править точки</button><button class="btn sec" data-a="home">История</button></div>
     <div class="row"><button class="btn sec" data-a="guide">Справочник точек</button></div>`);
+  if (openI !== null) { toggleMetric(openI); $('#p' + openI)?.scrollIntoView({ block: 'center' }); }
 }
 
 /* линии замера: «a-b,c-d», «$» → левая и правая сторона */
@@ -504,15 +534,31 @@ const segs = ln => ln.split(',')
   .flatMap(s => s.includes('$') ? ['left', 'right'].map(x => s.replaceAll('$', x)) : [s])
   .map(s => s.split('-'));
 
-function measureSvg(m) {
-  useFace(cur.pts, false);                       // рисуем в координатах фото, без поворота
-  const sg = segs(m.ln).map(([a, b]) => [raw(a), raw(b)]);
-  const xs = sg.flatMap(s => s.map(q => q.x)), ys = sg.flatMap(s => s.map(q => q.y));
+const faceFrame = () => Settings.level ? faceRot(cur.pts) : 0;
+/* сегменты замера в выровненной системе: ширины — горизонтальные, высоты по центру лица — вертикальные */
+function frameSegs(m, rot) {
+  useFace(cur.pts, false);
+  const R = k => rotPt(raw(k), rot);
+  return segs(m.ln).map(([a, b]) => {
+    const A = R(a), B = R(b);
+    if (isMirror(a, b)) { const y = (A.y + B.y) / 2; return [{ x: A.x, y }, { x: B.x, y }]; }
+    if (isMid(a) && isMid(b)) { const x = (A.x + B.x) / 2; return [{ x, y: A.y }, { x, y: B.y }]; }
+    return [A, B];
+  });
+}
+function viewBoxFor(pts) {
+  const xs = pts.map(q => q.x), ys = pts.map(q => q.y);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-  const w = Math.max(x1 - x0, (y1 - y0) * 1.2, 60) * 1.35, h = w * .75, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, sw = w / 160;
-  return `<svg viewBox="${cx - w / 2} ${cy - h / 2} ${w} ${h}"><image href="${cur.img}" width="${cur.w}" height="${cur.h}"/>` +
-    sg.map(([a, b]) => `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#35e0d0" stroke-width="${sw}"/>` +
-      `<circle cx="${a.x}" cy="${a.y}" r="${sw * 2}" fill="#fff"/><circle cx="${b.x}" cy="${b.y}" r="${sw * 2}" fill="#fff"/>`).join('') + '</svg>';
+  const w = Math.max(x1 - x0, (y1 - y0) * 1.25, 60) * 1.45, h = w * .8;
+  return { x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h };
+}
+const svgBase = (vb, rot, attrs = '') => `<svg ${attrs} viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}"><image href="${cur.img}" width="${cur.w}" height="${cur.h}" transform="rotate(${deg(rot)})"/>`;
+const lineSvg = (sg, sw) => sg.map(([a, b]) =>
+  `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#35e0d0" stroke-width="${sw}"/>` +
+  `<circle cx="${a.x}" cy="${a.y}" r="${sw * 2}" fill="#fff"/><circle cx="${b.x}" cy="${b.y}" r="${sw * 2}" fill="#fff"/>`).join('');
+function measureSvg(m) {
+  const rot = faceFrame(), sg = frameSegs(m, rot), vb = viewBoxFor(sg.flat());
+  return svgBase(vb, rot) + lineSvg(sg, vb.w / 160) + '</svg>';
 }
 function toggleMetric(i) {
   const el = $('#p' + i), m = RES[i], dt = el.querySelector('.det');
@@ -522,8 +568,67 @@ function toggleMetric(i) {
   dt.innerHTML = measureSvg(m) + `<p>${m.ds}</p>
     <div class="gl">${used.map(p => `<figure>${dgm(p.k)}${p.ru}</figure>`).join('')}</div>
     <p><b>Значение:</b> ${fmtVal(m.v, m.u)} · <b>Норма:</b> ${m.min}–${m.max}${m.u}</p>
-    <p><b>Оценка:</b> ${m.score.toFixed(2)}/10 · <b>Вес:</b> ${m.w} · <b>Штраф:</b> −${m.cost.toFixed(2)}</p>`;
+    <p><b>Оценка:</b> ${m.score.toFixed(2)}/10 · <b>Вес:</b> ${m.w} · <b>Штраф:</b> −${m.cost.toFixed(2)}</p>
+    <button class="btn sec" data-a="fix" data-i="${i}" style="margin-top:8px">Править точки замера</button>`;
 }
+
+/* ---------- правка точек прямо по схеме замера ---------- */
+function renderFix(i) {
+  const m = RES[i], rot = faceFrame();
+  useFace(cur.pts, false);
+  const keys = [...new Set(segs(m.ln).flat().flatMap(k => VIRT[k] || [k]))].filter(k => cur.pts[k]);
+  const vb = viewBoxFor([...frameSegs(m, rot).flat(), ...keys.map(k => rotPt(cur.pts[k], rot))]);
+  fix = { i, m, keys, rot, vb, active: null, backup: Object.fromEntries(keys.map(k => [k, { ...cur.pts[k] }])) };
+  render('fix', `<div class="top"><h1>${m.name}</h1></div><div class="mute">${m.ds}</div>
+    <div class="card fxs" id="fxv"></div>
+    <div id="fx">${svgBase(vb, rot, 'id="fxsvg" style="touch-action:none"')}<g id="ov"></g></svg>
+      <div class="lpw" id="lpw">${svgBase({ x: 0, y: 0, w: 10, h: 10 }, rot, 'id="lpsvg"')}</svg></div></div>
+    <p class="mute" style="font-size:12px;text-align:center">Коснитесь нужной точки и ведите палец — рядом появится лупа. Выбирается ближайшая к пальцу точка.</p>
+    <div class="row"><button class="btn sec" data-a="fxreset">Сбросить правки</button><button class="btn" data-a="fxdone">Готово</button></div>`);
+  fixDraw(); fixInfo(); bindFix();
+}
+function fixDraw() {
+  const sw = fix.vb.w / 160, sg = frameSegs(fix.m, fix.rot);
+  $('#ov').innerHTML = sg.map(([a, b]) => `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#35e0d0" stroke-width="${sw}"/>`).join('') +
+    fix.keys.map(k => {
+      const q = rotPt(cur.pts[k], fix.rot), on = k === fix.active;
+      return `<circle cx="${q.x}" cy="${q.y}" r="${sw * (on ? 3.6 : 2.6)}" fill="${on ? '#e8503a' : '#fff'}" stroke="${on ? '#fff' : '#1f6b7a'}" stroke-width="${sw * .8}"/>`;
+    }).join('');
+}
+function fixInfo() {
+  useFace(cur.pts, Settings.level);
+  const m = fix.m; let v = NaN; try { v = m.f(); } catch {}
+  const ok = isFinite(v), sc = ok ? scoreMetric(m, v).score : 0, pt = PTS.find(p => p.k === fix.active);
+  $('#fxv').innerHTML = `<b style="font-size:20px">${ok ? fmtVal(v, m.u) : '—'}</b> <span class="mute">норма ${m.min}–${m.max}${m.u} · оценка ${sc.toFixed(2)}/10</span>` +
+    (pt ? `<p style="font-size:13px">Точка: ${pt.ru}</p>` : '');
+}
+function bindFix() {
+  const svg = $('#fxsvg'), lpw = $('#lpw'), lps = $('#lpsvg');
+  const toFrame = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+  const loupe = k => {
+    const q = rotPt(cur.pts[k], fix.rot), s = svg.getBoundingClientRect().width / fix.vb.w, lw = 104 / (s * 3), fr = (q.x - fix.vb.x) / fix.vb.w;
+    lps.setAttribute('viewBox', `${q.x - lw / 2} ${q.y - lw / 2} ${lw} ${lw}`);
+    lpw.style.display = 'block'; lpw.style.left = fr < .45 ? 'auto' : '8px'; lpw.style.right = fr < .45 ? '8px' : 'auto';
+  };
+  let grab = null;
+  svg.onpointerdown = e => {
+    const f = toFrame(e); let best = null, bd = Infinity;
+    fix.keys.forEach(k => { const q = rotPt(cur.pts[k], fix.rot), dd = Math.hypot(q.x - f.x, q.y - f.y); if (dd < bd) { bd = dd; best = k; } });
+    if (!best || bd > fix.vb.w * .16) return;
+    const q = rotPt(cur.pts[best], fix.rot);
+    grab = { k: best, dx: q.x - f.x, dy: q.y - f.y }; fix.active = best;
+    svg.setPointerCapture(e.pointerId); haptic(); fixDraw(); fixInfo(); loupe(best);
+  };
+  svg.onpointermove = e => {
+    if (!grab) return;
+    const f = toFrame(e), X = f.x + grab.dx, Y = f.y + grab.dy, c = Math.cos(fix.rot), s = Math.sin(fix.rot);
+    cur.pts[grab.k] = { x: clamp(X * c + Y * s, 0, cur.w), y: clamp(-X * s + Y * c, 0, cur.h) };   // обратный поворот в координаты фото
+    fixDraw(); fixInfo(); loupe(grab.k);
+  };
+  const end = () => { if (!grab) return; grab = null; lpw.style.display = 'none'; persist(); };
+  svg.onpointerup = end; svg.onpointercancel = end;
+}
+const fixRestore = () => Object.entries(fix.backup).forEach(([k, q]) => { cur.pts[k] = { ...q }; });
 
 /* ---------- справочник ---------- */
 function renderGuide() {
@@ -538,10 +643,13 @@ function renderGuide() {
    ===================================================================== */
 const openRecord = async id => {
   const r = await Store.get(id); if (!r) return toast('Запись не найдена');
-  cur = r; if (isComplete(r)) renderResult(); else { cur.i = clamp(cur.i, 0, PTS.length - 1); renderMark(); }
+  cur = r;
+  if (isComplete(r)) renderResult();
+  else { const miss = PTS.findIndex(p => !r.pts[p.k]); cur.i = miss >= 0 ? miss : 0; renderMark(); }
   scrollTo(0, 0);
 };
 const goBack = () => {
+  if (view === 'fix') { fixRestore(); persist(true); return renderResult(fix.i); }
   if (view === 'guide') return ({ mark: () => cur ? renderMark() : renderHome(), result: () => cur ? renderResult() : renderHome() }[guideFrom] || renderHome)();
   persist(true); renderHome();
 };
@@ -556,6 +664,9 @@ const ACTIONS = {
   edit() { cur.i = 0; renderMark(); scrollTo(0, 0); },
   home: () => { persist(true); renderHome(); scrollTo(0, 0); },
   tog: ({ i }) => toggleMetric(+i),
+  fix: ({ i }) => { renderFix(+i); scrollTo(0, 0); },
+  fxreset() { fixRestore(); fix.active = null; persist(); fixDraw(); fixInfo(); },
+  fxdone() { persist(true); renderResult(fix.i); },
   guide() { guideFrom = view; renderGuide(); scrollTo(0, 0); },
   back: goBack,
   zoom({ k }) {
