@@ -331,30 +331,31 @@ metric('PFL to Biozygo', 'Ширина глаза к ширине скул', 19.
 /* =====================================================================
    6. ОЦЕНКА
    ===================================================================== */
-/* Допуск = полуширина нормы, но не меньше 4% от её середины (для углов — не меньше 2°):
-   так узкие диапазоны и малые углы не штрафуются несоразмерно. */
-const tolOf = m => Math.max((m.max - m.min) / 2, .04 * Math.abs((m.min + m.max) / 2), m.u === '°' ? 2 : 0);
+/* Допуск = полуширина нормы (без искусственных надбавок). z — расстояние от границы нормы в допусках.
+   Внутри нормы: 8.5 на границе … 10 в центре. За нормой: экспоненциальный спад от 8.5
+   (z=0.25 → 6.6, z=0.5 → 5.2, z=1 → 3.1, z=1.5 → 1.9, z=2 → 1.2). */
+const tolOf = m => Math.max((m.max - m.min) / 2, 1e-9);
+const PENALTY_K = 15;                        // сила штрафа для общей гармонии
 function scoreMetric(m, v) {
-  const mid = (m.min + m.max) / 2, half = (m.max - m.min) / 2;
+  const mid = (m.min + m.max) / 2, half = tolOf(m);
   const dist = v < m.min ? m.min - v : v > m.max ? v - m.max : 0;
-  if (!dist) return { dev: 0, score: 10 - 1.5 * Math.abs(v - mid) / half };   // внутри нормы: 8.5–10
-  const z = dist / tolOf(m);                                                  // расстояние от нормы в допусках
-  return { dev: .04 * z, score: 8.5 / (1 + .4 * z * z) };                     // плавный спад от 8.5
+  if (!dist) return { z: 0, pen: 0, score: 10 - 1.5 * Math.abs(v - mid) / half };
+  const z = dist / half;
+  return { z, pen: 1 - Math.exp(-z), score: 8.5 * Math.exp(-z) };           // штраф начинается сразу за границей нормы
 }
-const tierOf = x => x < .05 ? 1 : x < .1 ? 2 : x < .2 ? 3 : x < .35 ? 4 : x < .5 ? 5 : 6;
+const tierOf = z => z === 0 ? 1 : z < .25 ? 2 : z < .5 ? 3 : z < 1 ? 4 : z < 2 ? 5 : 6;   // тиры по z
 
 function analyze(pts, level) {
   useFace(pts, level);
   const R = M.map(m => {
     let v = NaN; try { v = m.f(); } catch {}
     const bad = !isFinite(v); if (bad) v = 0;
-    const { dev, score } = scoreMetric(m, v);
-    return { ...m, v, bad, dev, pen: dev < .05 ? 0 : dev, score };
+    return { ...m, v, bad, ...scoreMetric(m, v) };
   });
   const W = R.reduce((t, m) => t + m.w, 0);
-  R.forEach(m => m.cost = m.w * m.pen / W * 25);
+  R.forEach(m => m.cost = m.w * m.pen / W * PENALTY_K);
   const harmony = Math.max(0, 10 - R.reduce((t, m) => t + m.cost, 0));
-  const T = R.map(m => tierOf(m.dev));
+  const T = R.map(m => tierOf(m.z));
   const tier = Math.max(0, 10 - ((T.reduce((a, b) => a + b) / T.length - 1) * 1.2 + (Math.max(...T) - 1) * .8));
   return { R, harmony, tier };
 }
