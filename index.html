@@ -331,17 +331,22 @@ metric('PFL to Biozygo', 'Ширина глаза к ширине скул', 19.
 /* =====================================================================
    6. ОЦЕНКА
    ===================================================================== */
-/* Допуск = полуширина нормы (без искусственных надбавок). z — расстояние от границы нормы в допусках.
-   Внутри нормы: 8.5 на границе … 10 в центре. За нормой: экспоненциальный спад от 8.5
-   (z=0.25 → 6.6, z=0.5 → 5.2, z=1 → 3.1, z=1.5 → 1.9, z=2 → 1.2). */
+/* Шкала оценки метрики:
+   10 — эталон (центр нормы), 8–9 — отлично, 6–7 — хорошо, 4–5 — средне, 2–3 — плохо, 0–1 — провал.
+   Внутри нормы: 8.5 на границе … 10 в центре.
+   За нормой балл падает по ломаной от z — расстояния до границы нормы в допусках (допуск = полуширина нормы). */
 const tolOf = m => Math.max((m.max - m.min) / 2, 1e-9);
-const PENALTY_K = 15;                        // сила штрафа для общей гармонии
+const SCALE = [[0, 8.5], [.25, 6.5], [.5, 4.5], [1, 2.5], [1.5, 1.2], [2.5, 0]];   // [z, балл]
 function scoreMetric(m, v) {
   const mid = (m.min + m.max) / 2, half = tolOf(m);
   const dist = v < m.min ? m.min - v : v > m.max ? v - m.max : 0;
-  if (!dist) return { z: 0, pen: 0, score: 10 - 1.5 * Math.abs(v - mid) / half };
+  if (!dist) return { z: 0, score: 10 - 1.5 * Math.abs(v - mid) / half };
   const z = dist / half;
-  return { z, pen: 1 - Math.exp(-z), score: 8.5 * Math.exp(-z) };           // штраф начинается сразу за границей нормы
+  for (let i = 1; i < SCALE.length; i++) {
+    const [z0, s0] = SCALE[i - 1], [z1, s1] = SCALE[i];
+    if (z <= z1) return { z, score: s0 + (s1 - s0) * (z - z0) / (z1 - z0) };
+  }
+  return { z, score: 0 };
 }
 const tierOf = z => z === 0 ? 1 : z < .25 ? 2 : z < .5 ? 3 : z < 1 ? 4 : z < 2 ? 5 : 6;   // тиры по z
 
@@ -352,9 +357,9 @@ function analyze(pts, level) {
     const bad = !isFinite(v); if (bad) v = 0;
     return { ...m, v, bad, ...scoreMetric(m, v) };
   });
-  const W = R.reduce((t, m) => t + m.w, 0);
-  R.forEach(m => m.cost = m.w * m.pen / W * PENALTY_K);
-  const harmony = Math.max(0, 10 - R.reduce((t, m) => t + m.cost, 0));
+  /* Гармония = сумма баллов / количество метрик. cost — на сколько метрика снижает гармонию относительно 10. */
+  R.forEach(m => m.cost = (10 - m.score) / R.length);
+  const harmony = R.reduce((t, m) => t + m.score, 0) / R.length;
   const T = R.map(m => tierOf(m.z));
   const tier = Math.max(0, 10 - ((T.reduce((a, b) => a + b) / T.length - 1) * 1.2 + (Math.max(...T) - 1) * .8));
   return { R, harmony, tier };
@@ -511,7 +516,7 @@ function renderResult(openI = null) {
   cur.harmony = harmony; cur.tier = tier; persist(true);
   RES = R;
   const best = [...R].sort((a, b) => b.score - a.score).slice(0, 3);
-  const worst = [...R].sort((a, b) => b.cost - a.cost).filter(m => m.cost > 0).slice(0, 3);
+  const worst = [...R].sort((a, b) => b.cost - a.cost).filter(m => m.score < 8.5).slice(0, 3);
   const pill = (m, i) => {
     const pos = clamp((.5 + (m.v - (m.min + m.max) / 2) / (m.max - m.min) * .4) * 100, 3, 97);
     return `<div class="pill" id="p${i}"><div class="ph" data-a="tog" data-i="${i}"><span>${m.name}<b class="badge">${fmtVal(m.v, m.u)}</b></span><b class="sc">${m.score.toFixed(2)}</b><em>›</em></div>
@@ -569,7 +574,7 @@ function toggleMetric(i) {
   dt.innerHTML = measureSvg(m) + `<p>${m.ds}</p>
     <div class="gl">${used.map(p => `<figure>${dgm(p.k)}${p.ru}</figure>`).join('')}</div>
     <p><b>Значение:</b> ${fmtVal(m.v, m.u)} · <b>Норма:</b> ${m.min}–${m.max}${m.u}</p>
-    <p><b>Оценка:</b> ${m.score.toFixed(2)}/10 · <b>Вес:</b> ${m.w} · <b>Штраф:</b> −${m.cost.toFixed(2)}</p>
+    <p><b>Оценка:</b> ${m.score.toFixed(2)}/10 · <b>Штраф:</b> −${m.cost.toFixed(2)}</p>
     <button class="btn sec" data-a="fix" data-i="${i}" style="margin-top:8px">Править точки замера</button>`;
 }
 
