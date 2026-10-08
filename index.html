@@ -357,14 +357,14 @@ function analyze(pts, level) {
     const bad = !isFinite(v); if (bad) v = 0;
     return { ...m, v, bad, ...scoreMetric(m, v) };
   });
-  /* Гармония = сумма баллов / количество метрик. cost — на сколько метрика снижает гармонию относительно 10. */
-  R.forEach(m => m.cost = (10 - m.score) / R.length);
-  const harmony = R.reduce((t, m) => t + m.score, 0) / R.length;
-  const T = R.map(m => tierOf(m.z));
-  /* Оценка по тирам: T1=10, T2=8, T3=6, T4=4, T5=2, T6=0.  Оценка = 12 − 2 × (средний тир) */
-  const avgTier = T.reduce((a, b) => a + b, 0) / T.length;
+  /* Главная оценка (Front Harmony) — по тирам: T1=10, T2=8, T3=6, T4=4, T5=2, T6=0.
+     Оценка = 12 − 2 × (средний тир), средний тир = сумма тиров / количество метрик. */
+  R.forEach(m => m.tier = tierOf(m.z));
+  const avgTier = R.reduce((t, m) => t + m.tier, 0) / R.length;
   const tier = clamp(12 - avgTier * 2, 0, 10);
-  return { R, harmony, tier, avgTier };
+  R.forEach(m => m.cost = (2 * m.tier - 2) / R.length);          // вклад метрики в снижение оценки; сумма = 10 − оценка
+  const continuous = R.reduce((t, m) => t + m.score, 0) / R.length;   // среднее непрерывных баллов (справочно)
+  return { R, harmony: tier, tier, avgTier, continuous };
 }
 const fmtVal = (v, u) => v.toFixed(2) + u;
 const label = h => h >= 9 ? 'Отличная гармония' : h >= 8 ? 'Очень хорошая гармония' : h >= 7 ? 'Хорошая гармония' : h >= 5 ? 'Средняя гармония' : 'Низкая гармония';
@@ -518,7 +518,7 @@ function renderResult(openI = null) {
   cur.harmony = harmony; cur.tier = tier; persist(true);
   RES = R;
   const best = [...R].sort((a, b) => b.score - a.score).slice(0, 3);
-  const worst = [...R].sort((a, b) => b.cost - a.cost).filter(m => m.score < 8.5).slice(0, 3);
+  const worst = [...R].sort((a, b) => b.cost - a.cost).filter(m => m.cost > 0).slice(0, 3);
   const pill = (m, i) => {
     const pos = clamp((.5 + (m.v - (m.min + m.max) / 2) / (m.max - m.min) * .4) * 100, 3, 97);
     return `<div class="pill" id="p${i}"><div class="ph" data-a="tog" data-i="${i}"><span>${m.name}<b class="badge">${fmtVal(m.v, m.u)}</b></span><b class="sc">${m.score.toFixed(2)}</b><em>›</em></div>
@@ -530,7 +530,7 @@ function renderResult(openI = null) {
     <div class="card st"><b>Сильные стороны:</b><ul>${best.map(m => `<li>${m.name} — ${m.score.toFixed(1)}/10</li>`).join('')}</ul>
       <p style="margin-top:12px"><b>Наибольший вклад в штраф:</b></p>
       <ul>${worst.length ? worst.map(m => `<li>${m.name} — −${m.cost.toFixed(2)}</li>`).join('') : '<li>Нет штрафов</li>'}</ul>
-      <p class="mute" style="margin-top:12px">Оценка по тирам: <b>${tier.toFixed(1)}</b>/10 · средний тир ${avgTier.toFixed(2)}</p></div>
+      <p class="mute" style="margin-top:12px">Средний тир: <b>${avgTier.toFixed(2)}</b> · оценка = 12 − 2 × ${avgTier.toFixed(2)}</p></div>
     <h2>Ваши пропорции</h2>${R.map(pill).join('')}
     <div class="row"><button class="btn sec" data-a="edit">Править точки</button><button class="btn sec" data-a="home">История</button></div>
     <div class="row"><button class="btn sec" data-a="guide">Справочник точек</button></div>`);
